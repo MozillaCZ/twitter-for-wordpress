@@ -32,6 +32,7 @@ define('MAGPIE_CACHE_ON', 1); //2.7 Cache Bug
 define('MAGPIE_CACHE_AGE', 180);
 define('MAGPIE_INPUT_ENCODING', 'UTF-8');
 define('MAGPIE_OUTPUT_ENCODING', 'UTF-8');
+define('MAGPIE_DEBUG', 1);
 
 $twitter_options['widget_fields']['title'] = array('label'=>'Title:', 'type'=>'text', 'default'=>'');
 $twitter_options['widget_fields']['username'] = array('label'=>'Username:', 'type'=>'text', 'default'=>'');
@@ -49,9 +50,35 @@ $twitter_options['prefix'] = 'twitter';
 function twitter_messages($username = '', $num = 1, $list = false, $update = true, $linked  = '#', $hyperlinks = true, $twitter_users = true, $encode_utf8 = false) {
 
 	global $twitter_options;
+	global $wpdb;
 	include_once(ABSPATH . WPINC . '/rss.php');
+	$TWITTER_OPTION_NAME = "twitter_last_check";
+	$TWITTER_CACHE = 60*60; // v sekundách
 	
-	$messages = fetch_rss('http://twitter.com/statuses/user_timeline/'.$username.'.rss');
+	// Zjistí se datum posledního stažení příspěvků z Twitteru
+	$optionRes = $wpdb->get_row("SELECT option_value FROM $wpdb->options WHERE option_name='$TWITTER_OPTION_NAME'");
+
+	if (!$optionRes || $optionRes->option_value + $TWITTER_CACHE < time()) {
+		$messages = fetch_rss('http://twitter.com/statuses/user_timeline/'.$username.'.rss');
+		if (!empty($messages->items)) {
+			$wpdb->query("DELETE FROM wp_twitter");
+			foreach ( $messages->items as $message ) {
+				$wpdb->query( $wpdb->prepare( "INSERT INTO wp_twitter (date, url, message) VALUES (%s, %s, %s)", $message['pubdate'], $message['link'], $message['description']));
+			}
+			
+			// Uložíme si informaci o poslední kontrole
+			if (!$optionRes) {
+				$wpdb->query($wpdb->prepare( "INSERT INTO $wpdb->options (option_name, option_value) VALUES (%s, %s)", $TWITTER_OPTION_NAME, time()));
+			} else {
+				$wpdb->query("UPDATE $wpdb->options SET option_value='".time()."' WHERE option_name='$TWITTER_OPTION_NAME'");
+			}
+		}
+	}
+	
+	echo MySQL_error();
+	
+	// Provede se načtení příspěvků z db
+	$messages = $wpdb->get_results ("SELECT * FROM wp_twitter ORDER BY id LIMIT 3");
 
 	if ($list) echo '<ul class="twitter">';
 	
@@ -60,16 +87,16 @@ function twitter_messages($username = '', $num = 1, $list = false, $update = tru
 		echo 'RSS not configured';
 		if ($list) echo '</li>';
 	} else {
-			if ( empty($messages->items) ) {
+			if ( empty($messages) ) {
 				if ($list) echo '<li>';
-				echo 'Na Twitteru nejsou dostupné žádné zprávy.';
+				echo 'Nepodařilo se z Twitteru stáhnout příspěvky.';
 				if ($list) echo '</li>';
 			} else {
         $i = 0;
-				foreach ( $messages->items as $message ) {
-					$msg = " ".substr(strstr($message['description'],': '), 2, strlen($message['description']))." ";
+				foreach ( $messages as $message ) {
+					$msg = " ".substr(strstr($message->message,': '), 2, strlen($message->message))." ";
 					if($encode_utf8) $msg = utf8_encode($msg);
-					$link = $message['link'];
+					$link = $message->url;
 				
 					if ($list) echo '<li class="twitter-item">'; elseif ($num != 1) echo '<p class="twitter-message">';
 
@@ -89,7 +116,7 @@ function twitter_messages($username = '', $num = 1, $list = false, $update = tru
           
           
         if($update) {				
-          $time = strtotime($message['pubdate']);
+          $time = strtotime($message->date);
           
           if ( ( abs( time() - $time) ) < 86400 )
             $h_time = date(__('d. m Y H:i'), $time);

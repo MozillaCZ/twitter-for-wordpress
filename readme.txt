@@ -1,58 +1,20 @@
-=== Twitter for Wordpress ===
-Tags: twitter
-Requires at least: 2.1
-Tested up to: 3.0
-Stable tag: trunk
-Donate link: http://rick.jinlabs.com/donate/
+Upravený plugin pro odběr příspěvků z Twitteru
+===============================================
 
-Twitter for WordPress displays yours latest tweets in your WordPress blog.
+Plugin "Twitter for Wordpress" má problém, že korektně nekešuje, takže při každém zobrazení titulky
+Mozilla.cz se znovu načítá RSS kanál Twitteru. Vyřešil jsem to tak, že jsem do db přidal tabulku
+wp_twitter, kam se příspěvky kešují a navíc se do tabulky wp_options ukládá klíč "twitter_last_check",
+kam se ukládá poslední timestamp, kdy došlo k načtení RSS zdroje. Ten se obnovuje nejdříve jednou za
+hodinu a to přímo při requestu uživatele na titulku Mozilla.cz. V tom okamžiku se RSS zdroj načte
+a uloží se do db, odkud je další hodinu načítán.
 
-== Description ==
+Jak nainstalovat upravený plugin
+---------------------------------
+1) V db spustit přiložený create.sql.
+2) Nahradit v pluginu soubor twitter.php přiloženou variantou.
 
-Twitter for WordPress displays yours latest tweets in your WordPress blog.
+Délka kešování lze nastavit v proměnné TWITTER_CACHE.
 
-**Features**
+Modifikovaný kód se nachází ve funkci twitter_messages(), řádek 50.
 
-    *  Simply
-    *  Customizable
-    *  Widget support
-    *  No options page (yes, its a feature)
-    *  Uses Wordpress resources (no extra files needed)
-    *  Detects URLs, e-mail address and @username replies
-
-**Usage**
-
-If you use WordPress widgets, just drag the widget into your sidebar and configure. If widgets are not your thing, use the following code to display your public Twitter messages:
-
-`<?php twitter_messages("username"); ?>`
-
-For more info (options, customization, etc.) visit [the plugin homepage](http://rick.jinlabs.com/code/twitter "Twitter for Wordpress").
-
-**Customization**
-
-The plug in provides the following CSS classes:
-
-    * ul.twitter: the main ul (if list is activated)
-    * li.twitter-item: the ul items (if list is activated)
-    * p.twitter-message: each one of the paragraphs (if msgs > 1)
-    * .twitter-timestamp: the timestamp span class
-    * a.twitter-link: the tweet link class
-    * a.twitter-user: the @username reply link class
-
-== Installation ==
-
-Drop twitter-for-Wordpress folder (or even twitter.php) into /wp-content/plugins/ and activate the plug in the Wordpress admin area.
-
-== Credits ==
-
-[Ronald Heft](http://cavemonkey50.com/) - The plugin is highly based in his Pownce for Wordpress, so the major part of the credits goes to him.
-
-[Michael Feichtinger](http://bohuco.net/blog) - For the multi-widget feature.
-
-Michael Voigt - #trendingtopics regexp
-
-Allen Shaw - link's regexp finetune
-
-== Contact ==
-
-Suggestion, fixes, rants, congratulations, gifts et al to rick[at]jinlabs.com
+Upravil: Pavel Cvrček <pcvrcek@mozilla.cz>.
